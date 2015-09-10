@@ -402,6 +402,68 @@ Controllers 目錄右鍵選單 Add | Controller
 Models 目錄新增 Class
 
 
+# 支援 JsonP
+
+```
+public class JsonpResult : JsonResult
+    {
+        public static readonly string JsonpCallbackName = "callback";
+        public static readonly string CallbackApplicationType = "application/json";
+
+        public override void ExecuteResult(ControllerContext context)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException("context");
+            }
+            if ((JsonRequestBehavior == JsonRequestBehavior.DenyGet) &&
+                  String.Equals(context.HttpContext.Request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException();
+            }
+            var response = context.HttpContext.Response;
+            if (!String.IsNullOrEmpty(ContentType))
+                response.ContentType = ContentType;
+            else
+                response.ContentType = CallbackApplicationType;
+            if (ContentEncoding != null)
+                response.ContentEncoding = this.ContentEncoding;
+            if (Data != null)
+            {
+                String buffer;
+                var request = context.HttpContext.Request;
+                var serializer = new JavaScriptSerializer();
+                if (request[JsonpCallbackName] != null)
+                    buffer = String.Format("{0}({1})", request[JsonpCallbackName], serializer.Serialize(Data));//首先根據callback獲取獲取函數名，然後傳入json字符串作為函數參數
+                else
+                    buffer = serializer.Serialize(Data);
+                response.Write(buffer);
+            }
+        }
+    }
+    
+// Controller Extension    
+public static JsonpResult Jsonp(this Controller controller, object data)
+        {
+            JsonpResult result = new JsonpResult()
+            {
+                Data = data,
+                JsonRequestBehavior = JsonRequestBehavior.AllowGet
+            }; 
+            return result;
+        }
+        
+// Test
+public ActionResult Index()
+        {
+            return this.Jsonp(new { name = "server JsonpResult" });
+        }
+```
+
+
+
+* [ASP.NET MVC 定义JsonpResult实现跨域请求 - dandzm](http://www.cnblogs.com/dandzm/p/4758453.html)
+
 
 # 參考資料
 * [七天學會ASP.NET MVC](http://my.oschina.net/powertoolsteam/blog/490652)
@@ -414,9 +476,6 @@ http://www.cnblogs.com/xiaoyaojian/p/4725496.html
 http://www.cnblogs.com/xiaoxuanzhi/p/4733280.html
 asp.net web编程开发将model类序列化 - 孔轩志
 
-
-http://www.cnblogs.com/dandzm/p/4758453.html
-ASP.NET MVC 定义JsonpResult实现跨域请求 - dandzm
 
 
 http://www.c-sharpcorner.com/UploadFile/618722/custom-error-page-in-Asp-Net-mvc/
