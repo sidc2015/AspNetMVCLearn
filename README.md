@@ -401,6 +401,11 @@ Controllers 目錄右鍵選單 Add | Controller
 
 Models 目錄新增 Class
 
+# 自訂錯誤頁面
+* http://www.c-sharpcorner.com/UploadFile/618722/custom-error-page-in-Asp-Net-mvc/
+
+# Model 資料驗證
+* http://www.c-sharpcorner.com/UploadFile/13048b/model-validation-in-Asp-Net-mvc909/
 
 # 支援 JsonP
 
@@ -464,6 +469,170 @@ public ActionResult Index()
 
 * [ASP.NET MVC 定义JsonpResult实现跨域请求 - dandzm](http://www.cnblogs.com/dandzm/p/4758453.html)
 
+# 支援 CROS
+
+
+* http://www.cnblogs.com/xiaoyaojian/p/4763016.html
+
+# 靜態檔案
+
+路徑定義在 project.json
+
+```
+{
+     "webroot": "wwwroot",
+    ...
+}
+```
+
+webroot 以外的靜態檔案
+
+在Startup類中的Configure方法中調用app的UseStaticFiles來完成
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Add static files to the request pipeline.
+  app.UseStaticFiles();
+```
+
+使用http://<yourApp>/StaticFiles/test.png來訪問上文中所述的test.png文件
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Add MyStaticFiles static files to the request pipeline.
+  app.UseStaticFiles(new StaticFileOptions()
+  {
+      FileProvider = new PhysicalFileProvider(@"D:\Source\WebApplication1\src\WebApplication1\MyStaticFiles"),
+      RequestPath = new PathString("/StaticFiles")
+  });
+  ...
+```
+
+# 目錄瀏覽
+
+## 使用 UseFileServer
+
+app.UseFileServer(enableDirectoryBrowsing: true);
+
+```
+app.UseFileServer(new FileServerOptions()
+{
+    FileProvider = new PhysicalFileProvider(@"D:\Source\WebApplication1\src\WebApplication1\MyStaticFiles"),
+    RequestPath = new PathString("/StaticFiles"),
+    EnableDirectoryBrowsing = true
+});
+```
+
+
+## 使用 UseDirectoryBrowser
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Turn on directory browsing for the current directory.
+  app.UseDirectoryBrowser();
+  
+```
+
+webroot 以外的目錄
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Add the ability for the user to browse the MyStaticFiles directory.
+  app.UseDirectoryBrowser(new DirectoryBrowserptions()
+  {
+      FileProvider = new PhysicalFileProvider(@"D:\Source\WebApplication1\src\WebApplication1\MyStaticFiles"),
+      RequestPath = new PathString("/StaticFiles")
+  });
+```
+
+# 預設檔案
+
+必須同樣調用UseStaticFiles方法，這是因為UseDefaultFiles方法只是重寫了URL
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Serve the default file, if present.
+  app.UseDefaultFiles();
+  app.UseStaticFiles();
+```
+
+用於非 index.* default.* 檔案
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Serve my app-specific default file, if present.
+  DefaultFilesOptions options = new DefaultFilesOptions();
+  options.DefaultFileNames.Clear();
+  options.DefaultFileNames.Add("mydefault.html");
+  app.UseDefaultFiles(options);
+  app.UseStaticFiles();
+```
+
+# 預設檔案 Content Type
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+  // Serve static files and allow directory browsing.
+  app.UseDirectoryBrowser();
+  app.UseStaticFiles(new StaticFileOptions
+  {
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "image/png"
+  });
+```
+
+FileExtensionContentTypeProvider包含一個內部的列表映射於MIME內容類型和文件後綴，指定一個自定義的內容類型，只需要簡單的實例化一個FileExtensionContentTypeProvider對象，然後添加一個映射到Mappings屬性
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+
+  // Allow directory browsing.
+  app.UseDirectoryBrowser();
+
+  // Set up custom content types - associating file extension to MIME type
+  var provider = new FileExtensionContentTypeProvider();
+  provider.Mappings.Add(".myapp", "application/x-msdownload");
+
+  // Serve static files.
+  app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = provider });
+```
+
+# 整合 IIS
+
+IIS用戶一個本地的靜態文件模塊，它不依賴於ASP.NET靜態文件中間件組件，ASP.NET模塊在IIS本地組件之前運行，它擁有比IIS本地組件更高的優先權，而在ASP.NET BETA 7中，IIS已經更改，所以沒有被ASP.NET處理的請求將會返回一個空的404響應，而不是由IIS本地模塊來執行，如果希望由IIS本地模塊來處理，在Configure方法的最後添加以下代碼
+
+```
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+  ...
+
+  ...
+  // Enable the IIS native module to run after the ASP.NET middleware components.
+  // This call should be placed at the end of your Startup.Configure method so that
+  // it doesn't interfere with other middleware functionality.
+  app.RunIISPipeline();
+}
+```
+
+# 驗證碼
+
+* http://www.cnblogs.com/Coloor/p/Coloor.html
 
 # 參考資料
 * [七天學會ASP.NET MVC](http://my.oschina.net/powertoolsteam/blog/490652)
@@ -475,15 +644,6 @@ http://www.cnblogs.com/xiaoyaojian/p/4725496.html
 
 http://www.cnblogs.com/xiaoxuanzhi/p/4733280.html
 asp.net web编程开发将model类序列化 - 孔轩志
-
-
-
-http://www.c-sharpcorner.com/UploadFile/618722/custom-error-page-in-Asp-Net-mvc/
-Custom Error Page in ASP.NET MVC
-
-
-http://www.c-sharpcorner.com/UploadFile/13048b/model-validation-in-Asp-Net-mvc909/
-Model Validation in ASP.NET MVC
 
 
 http://www.cnblogs.com/oneapm/p/4752261.html
@@ -550,9 +710,6 @@ http://www.cnblogs.com/oneapm/p/4764390.html
 7 天玩转 ASP.NET MVC — 第 7 天 - OneAPM官方技术博客
 
 
-http://www.cnblogs.com/xiaoyaojian/p/4763016.html
-在Asp.Net 5应用程序中的跨域请求功能详解 - 小白哥哥
-
 
 http://www.cnblogs.com/lightluomeng/p/4760220.html
 ASP.NET MVC 如何在一个同步方法（非async）方法中等待async方法 - LibraJM
@@ -578,16 +735,9 @@ http://www.cnblogs.com/jiekzou/p/4780412.html
 ASP.Net MVC Controller(控制器) - 邹琼俊
 
 
-http://www.cnblogs.com/Coloor/p/Coloor.html
-ASP.NET MVC下的验证码 - Coloor
-
 
 http://www.c-sharpcorner.com/UploadFile/c3a146/bind-stack-column-chart-in-Asp-Net-using-jquery-and-ajax/
 Bind Stack Column Chart in ASP.NET Using jQuery And Ajax
-
-
-http://www.cnblogs.com/xiaoyaojian/p/4779553.html
-Asp.Net5 中静态文件的各种使用方式 - 小白哥哥
 
 
 http://www.cnblogs.com/gangtianci/p/4776841.html
